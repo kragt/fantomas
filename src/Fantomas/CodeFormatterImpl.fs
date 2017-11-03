@@ -33,7 +33,7 @@ let createFormatContextNoChecker fileName source =
     // Create an interactive checker instance (ignore notifications)
     let checker = sharedChecker.Value
     // Get compiler options for a single script file
-    let checkOptions = 
+    let checkOptions, _errors = 
         checker.GetProjectOptionsFromScript(fileName, source, DateTime.Now, filterDefines source) 
         |> Async.RunSynchronously
     { FileName = fileName; Source = source; ProjectOptions = checkOptions; Checker = checker }
@@ -44,7 +44,9 @@ let createFormatContext fileName source projectOptions checker =
 let parse { FileName = fileName; Source = source; ProjectOptions = checkOptions; Checker = checker } = 
     async {
         // Run the first phase (untyped parsing) of the compiler
-        let! untypedRes = checker.ParseFileInProject(fileName, source, checkOptions)
+        let parseOptions, _errors = checker.GetParsingOptionsFromProjectOptions(checkOptions)
+        let! untypedRes = checker.ParseFile(fileName, source, parseOptions)
+        //let! untypedRes = checker.ParseFileInProject(fileName, source, checkOptions)
         if untypedRes.ParseHadErrors then
             let errors = 
                 untypedRes.Errors
@@ -366,6 +368,9 @@ let formatWith ast moduleName input config =
 let format config ({ Source = sourceCode; FileName =  filePath } as formatContext) =
     async {
         let! ast = parse formatContext
+#if DEBUG
+        AstWriter.writeFile ast ((Path.GetFileNameWithoutExtension filePath) + ".ast")
+#endif
         return formatWith ast (Path.GetFileNameWithoutExtension filePath) (Some sourceCode) config
     }
 

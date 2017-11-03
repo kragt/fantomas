@@ -3,13 +3,16 @@
 // --------------------------------------------------------------------------------------
 
 #r @"packages/FAKE/tools/FakeLib.dll"
-open Fake 
+open Fake.Core
+open Fake.DotNet
+open Fake.Core.Globbing.Operators
+open Fake.DotNet.AssemblyInfoFile
+open Fake.DotNet.Testing.NUnit3
 open Fake.Git
-open Fake.AssemblyInfoFile
 open Fake.ReleaseNotesHelper
 open System
 
-setEnvironVar "MSBuild" (ProgramFilesX86 @@ @"\MSBuild\12.0\Bin\MSBuild.exe")
+//setEnvironVar "MSBuild" (ProgramFilesX86 @@ @"\MSBuild\12.0\Bin\MSBuild.exe")
 
 // Git configuration (used for publishing documentation in gh-pages branch)
 // The profile where the project is posted 
@@ -50,95 +53,115 @@ let release = parseReleaseNotes (IO.File.ReadAllLines "RELEASE_NOTES.md")
 // --------------------------------------------------------------------------------------
 // Clean build results & restore NuGet packages
 
-Target "Clean" (fun _ ->
-    CleanDirs ["bin"; "nuget"]
+Target.Create "Clean" (fun _ ->
+    Fake.FileHelper.CleanDirs ["bin"; "nuget"]
 )
 
-Target "AssemblyInfo" (fun _ ->
+Target.Create "AssemblyInfo" (fun _ ->
   let shared =
-      [ Attribute.Product project
-        Attribute.Description summary
-        Attribute.Version release.AssemblyVersion
-        Attribute.FileVersion release.AssemblyVersion ] 
+      [ AssemblyInfo.Product project
+        AssemblyInfo.Description summary
+        AssemblyInfo.Version release.AssemblyVersion
+        AssemblyInfo.FileVersion release.AssemblyVersion ] 
 
-  CreateFSharpAssemblyInfo "src/Fantomas/AssemblyInfo.fs"
-      ( Attribute.InternalsVisibleTo "Fantomas.Tests" :: Attribute.Title "FantomasLib" :: shared)
+  CreateFSharp "src/Fantomas/AssemblyInfo.fs"
+      ( AssemblyInfo.InternalsVisibleTo "Fantomas.Tests" :: AssemblyInfo.Title "FantomasLib" :: shared )
 
-  CreateFSharpAssemblyInfo "src/Fantomas.Cmd/AssemblyInfo.fs"
-      (Attribute.Title "Fantomas" :: shared)
+  CreateFSharp "src/Fantomas.Cmd/AssemblyInfo.fs"
+      ( AssemblyInfo.Title "Fantomas" :: shared )
+)
+
+// --------------------------------------------------------------------------------------
+// Build debug library
+
+Target.Create "Debug" (fun _ ->
+    // We would like to build only one solution
+    !! ("src/" + solutionFile + ".sln")
+    |> Fake.DotNet.MsBuild.MSBuildDebug "" "Rebuild"
+    |> ignore
 )
 
 // --------------------------------------------------------------------------------------
 // Build library & test project
 
-Target "Build" (fun _ ->
+Target.Create "Build" (fun _ ->
     // We would like to build only one solution
     !! ("src/" + solutionFile + ".sln")
-    |> MSBuildRelease "" "Rebuild"
+    |> Fake.DotNet.MsBuild.MSBuildRelease "" "Rebuild"
     |> ignore
 )
 
-Target "UnitTests" (fun _ ->
+Target.Create "UnitTests" (fun _ ->
     !! testAssemblies 
-    |> NUnit (fun p ->        
+    |> NUnit3 (fun p ->        
           { p with
-              DisableShadowCopy = true
+              ShadowCopy = false
+              //ToolPath = "packages/NUnit.ConsoleRunner/tools"
               TimeOut = TimeSpan.FromMinutes 20.
-              Framework = "4.5"
-              Domain = NUnitDomainModel.MultipleDomainModel
-              OutputFile = "TestResults.xml" })
+              Framework = NUnit3Runtime.Net45
+              //Domain = NUnitDomainModel.MultipleDomainModel
+              //OutputFile = "TestResults.xml"
+          })
 )
 
 // --------------------------------------------------------------------------------------
 // Build a NuGet package
 
-Target "NuGet" (fun _ ->
-    NuGet (fun p -> 
-        { p with   
-            Authors = authors
-            Project = project
-            Summary = summary
-            Description = description
-            Version = release.NugetVersion
-            ReleaseNotes = String.Join(Environment.NewLine, release.Notes)
-            Tags = tags
-            OutputPath = "src/Fantomas.Cmd/bin/Release"
-            AccessKey = getBuildParamOrDefault "nugetkey" ""
-            // Allow publishing from local build
-            Publish = isLocalBuild
-            Dependencies = [ "FSharp.Compiler.Service", GetPackageVersion "packages" "FSharp.Compiler.Service" ] })
-        (project + ".nuspec")
-)
+Target.Create "NuGet" ignore //(fun _ -> ()
+    //NuGet (fun p -> 
+    //    { p with   
+    //        Authors = authors
+    //        Project = project
+    //        Summary = summary
+    //        Description = description
+    //        Version = release.NugetVersion
+    //        ReleaseNotes = String.Join(Environment.NewLine, release.Notes)
+    //        Tags = tags
+    //        OutputPath = "src/Fantomas.Cmd/bin/Release"
+    //        AccessKey = getBuildParamOrDefault "nugetkey" ""
+    //        // Allow publishing from local build
+    //        Publish = isLocalBuild
+    //        Dependencies = [ "FSharp.Compiler.Service", GetPackageVersion "packages" "FSharp.Compiler.Service" ] })
+    //    (project + ".nuspec")
+//)
 
-Target "NuGetCLI" (fun _ ->
-    NuGet (fun p -> 
-        { p with   
-            Authors = authors
-            Project = sprintf "%sCLI" project
-            Summary = sprintf "%s (CLI tool)" summary 
-            Description = description
-            Version = release.NugetVersion
-            ReleaseNotes = String.Join(Environment.NewLine, release.Notes)
-            Tags = tags
-            OutputPath = "src/Fantomas.Cmd/bin/Release"
-            AccessKey = getBuildParamOrDefault "nugetkey" ""
-            // Allow publishing from local build
-            Publish = isLocalBuild
-            Dependencies = [] })
-        (project + "CLI.nuspec")
-)
+Target.Create "NuGetCLI" ignore //(fun _ -> ()
+    //NuGet (fun p -> 
+    //    { p with   
+    //        Authors = authors
+    //        Project = sprintf "%sCLI" project
+    //        Summary = sprintf "%s (CLI tool)" summary 
+    //        Description = description
+    //        Version = release.NugetVersion
+    //        ReleaseNotes = String.Join(Environment.NewLine, release.Notes)
+    //        Tags = tags
+    //        OutputPath = "src/Fantomas.Cmd/bin/Release"
+    //        AccessKey = getBuildParamOrDefault "nugetkey" ""
+    //        // Allow publishing from local build
+    //        Publish = isLocalBuild
+    //        Dependencies = [] })
+    //    (project + "CLI.nuspec")
+//)
 
 // --------------------------------------------------------------------------------------
 // Run all targets by default. Invoke 'build <Target>' to override
 
-Target "All" DoNothing
+Target.Create "All" ignore
+Target.Create "RunTests" ignore
+
+open Fake.Core.TargetOperators
 
 "Clean"
-  ==> "AssemblyInfo"
-  ==> "Build"
-  ==> "UnitTests"
-  ==> "All"
-  ==> "NuGet"
-  ==> "NuGetCLI"
+    ==> "AssemblyInfo"
+    ==> "Build"
+    ==> "UnitTests"
+    ==> "RunTests"
+    ==> "All"
+    ==> "NuGet"
+    ==> "NuGetCLI"
 
-RunTargetOrDefault "All"
+"Clean"
+    ==> "AssemblyInfo"
+    ==> "Debug"
+
+Target.RunOrDefault "Build"

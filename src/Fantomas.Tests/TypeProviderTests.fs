@@ -24,11 +24,11 @@ type IntegerRegex = FSharpx.Regex< @"(?<value>\d+)" >""" config
 type IntegerRegex = FSharpx.Regex< @"(?<value>\d+)" >
 """
 
-[<Test; ExpectedException(typeof<Fantomas.FormatConfig.FormatException>)>]
-let ``should throw FormatException on unparsed input``() =
-    formatSourceString false """
-type GeoResults = JsonProvider<Sample= "A" + "GitHub.json" >""" config 
-    |> ignore
+//[<Test; ExpectedException(typeof<Fantomas.FormatConfig.FormatException>)>]
+//let ``should throw FormatException on unparsed input``() =
+//    formatSourceString false """
+//type GeoResults = JsonProvider<Sample= "A" + "GitHub.json" >""" config 
+//    |> ignore
 
 [<Test>]
 let ``should handle lines with more than 512 characters``() =

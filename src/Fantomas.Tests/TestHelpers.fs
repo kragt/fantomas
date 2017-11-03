@@ -25,7 +25,7 @@ let argsDotNET451 =
 let projectOptions =
     fun fileName ->
         {   ProjectFileName = @"C:\Project.fsproj"
-            ProjectFileNames = [| fileName |]
+            SourceFiles = [| fileName |]
             OtherOptions = argsDotNET451
             ReferencedProjects = Array.empty
             IsIncompleteTypeCheckEnvironment = false
@@ -33,7 +33,8 @@ let projectOptions =
             LoadTime = DateTime.UtcNow
             UnresolvedReferences = None
             OriginalLoadReferences = List.empty
-            ExtraProjectInfo = None }
+            ExtraProjectInfo = None
+            Stamp = None }
 
 let sharedChecker = lazy(FSharpChecker.Create())
 
