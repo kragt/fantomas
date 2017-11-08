@@ -28,11 +28,14 @@ let writeAstString (ast: ParsedInput) =
         sb.Append (indent i) |> ignore
         sb.AppendLine s |> ignore
 
-    let lidwdToString lidwd =
-        let (LongIdentWithDots(lid, _)) = lidwd
+    let lidToString (lid: LongIdent) =
         lid
         |> List.map (fun x -> x.idText)
         |> String.concat "."
+
+    let lidwdToString lidwd =
+        let (LongIdentWithDots(lid, _)) = lidwd
+        lidToString lid
 
     let visitBinding binding =
         let (Binding(_, _, _, _, _, _, _, pat, _, _, _, _)) = binding
@@ -64,7 +67,7 @@ let writeAstString (ast: ParsedInput) =
     let visitMemberDefns ilevel defns =
         for d in defns do
             match d with
-            | SynMemberDefn.Open (lid, _) -> appendLineWithIndent ilevel (sprintf "Open: %A" lid)
+            | SynMemberDefn.Open (lid, _) -> appendLineWithIndent ilevel (sprintf "Open: %s" (lidToString lid))
             | SynMemberDefn.Member (defn, _) -> 
                 appendWithIndent ilevel (sprintf "Member: ")
                 visitBinding defn
@@ -86,7 +89,7 @@ let writeAstString (ast: ParsedInput) =
         for d in defns do
             let (TypeDefn(sci, repr, defns, _)) = d
             let (ComponentInfo(_, _, _, lid, _, _, _, _)) = sci
-            appendWithIndent ilevel (sprintf "Type: %A " lid)
+            appendWithIndent ilevel (sprintf "Type: %s " (lidToString lid))
             match repr with
             | SynTypeDefnRepr.ObjectModel (kind, defns, _) ->
                 appendLine (sprintf "ObjectModel %A" kind)
@@ -105,7 +108,7 @@ let writeAstString (ast: ParsedInput) =
             | SynModuleDecl.DoExpr _ -> appendLineWithIndent ilevel "DoExpr"
             | SynModuleDecl.Types (defns, _) -> visitTypeDefns ilevel defns
             | SynModuleDecl.Exception _ -> appendLineWithIndent ilevel "Exception"
-            | SynModuleDecl.Open (lidwd, _) -> appendLineWithIndent ilevel (sprintf "Open: %A" lidwd)
+            | SynModuleDecl.Open (lidwd, _) -> appendLineWithIndent ilevel (sprintf "Open: %s" (lidwdToString lidwd))
             | SynModuleDecl.Attributes _ -> appendLineWithIndent ilevel "Attributes"
             | SynModuleDecl.HashDirective _ -> appendLineWithIndent ilevel "HashDirective"
             | SynModuleDecl.NamespaceFragment _ -> appendLineWithIndent ilevel "NamespaceFragment"
@@ -113,7 +116,7 @@ let writeAstString (ast: ParsedInput) =
     let visitModulesOrNamespaces ilevel mns =
         for mn in mns do
             let (SynModuleOrNamespace(lid, _isRec, _isMod, decls, _xml, _attrs, _, _m)) = mn
-            sb.AppendLine (sprintf "Namespace or Module: %A" lid) |> ignore
+            sb.AppendLine (sprintf "Namespace or Module: %s" (lidToString lid)) |> ignore
             visitDeclarations (ilevel + 1) decls
 
     match ast with
